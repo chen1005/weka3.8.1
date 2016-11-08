@@ -1035,8 +1035,10 @@ public class MotMultilayerPerceptron extends AbstractClassifier
      * mot specific instance variables
      */
     private final List<MLPLearningEventHandler> handlers = new ArrayList<MLPLearningEventHandler>();
-    private boolean m_eventListenerSet = false;
-    private boolean m_maxErrorSet = false;
+    private boolean m_eventListenerSet;
+    private boolean m_maxErrorSet;
+    private boolean m_incrementalTrain;
+    private int m_incrementalTrainCount;
     private double m_maxError;
 
     /**
@@ -1083,6 +1085,10 @@ public class MotMultilayerPerceptron extends AbstractClassifier
         m_momentum = .2;
         m_reset = true;
         m_decay = false;
+        m_eventListenerSet = false;
+        m_maxErrorSet = false;
+        m_incrementalTrain = true;
+        m_incrementalTrainCount = 0;
     }
 
     /**
@@ -1779,11 +1785,15 @@ public class MotMultilayerPerceptron extends AbstractClassifier
         m_controlPanel = null;
         m_nodePanel = null;
 
-        m_outputs = new NeuralEnd[0];
-        m_inputs = new NeuralEnd[0];
+        if (m_incrementalTrainCount == 0 || !m_incrementalTrain) {
+            // create networks only for the first time or m_incrementalTrain is false - Zhuo Chen
+            m_outputs = new NeuralEnd[0];
+            m_inputs = new NeuralEnd[0];
+            m_neuralNodes = new NeuralConnection[0];
+        }
+
         m_numAttributes = 0;
         m_numClasses = 0;
-        m_neuralNodes = new NeuralConnection[0];
 
         m_selected = new ArrayList<NeuralConnection>(4);
         m_nextId = 0;
@@ -1816,12 +1826,17 @@ public class MotMultilayerPerceptron extends AbstractClassifier
         }
         // /////////
 
-        setupInputs();
+        if (m_incrementalTrainCount == 0 || !m_incrementalTrain) {
+            // set up network only for the first time or m_incrementalTrain is false - Zhuo Chen
+            setupInputs();
+            setupOutputs();
 
-        setupOutputs();
-        if (m_autoBuild) {
-            setupHiddenLayer();
+            if (m_autoBuild) {
+                setupHiddenLayer();
+            }
         }
+
+        m_incrementalTrainCount++;
 
         // ///////////////////////////
         // this sets up the gui for usage
@@ -1958,6 +1973,7 @@ public class MotMultilayerPerceptron extends AbstractClassifier
                         throw new IllegalStateException(
                                 "Learning rate got too small (" + m_learningRate + " <= " + Utils.SMALL + ")!");
                     }
+                    m_incrementalTrainCount = 0; // reset m_incrementalTrainCount - Zhuo Chen
                     m_learningRate /= 2;
                     buildClassifier(i);
                     m_learningRate = origRate;
@@ -2008,8 +2024,10 @@ public class MotMultilayerPerceptron extends AbstractClassifier
             m_epoch = noa;
             m_error = right;
 
-            // fire a MLPLearningEvent after finished each epoch
-            this.fireMLPLearningEvents(m_epoch, m_error);
+            if (m_eventListenerSet) {
+                // fire a MLPLearningEvent after finished each epoch - Zhuo Chen
+                this.fireMLPLearningEvents(m_epoch, m_error);
+            }
 
             // shows what the neuralnet is upto if a gui exists.
             updateDisplay();
@@ -2051,6 +2069,15 @@ public class MotMultilayerPerceptron extends AbstractClassifier
                     return;
                 }
             }
+
+            if (m_maxErrorSet) {
+                // current total network error is smaller than the defined error threshold, set
+                // m_accepted to true - Zhuo Chen
+                if (m_error < m_maxError) {
+                    m_accepted = true;
+                }
+            }
+
             if (m_accepted) {
                 m_instances = new Instances(m_instances, 0);
                 m_currentInstance = null;
@@ -2682,6 +2709,14 @@ public class MotMultilayerPerceptron extends AbstractClassifier
     public void setMaxError(double maxError) {
         this.m_maxErrorSet = true;
         this.m_maxError = maxError;
+    }
+
+    public boolean getIncrementalTrain() {
+        return m_incrementalTrain;
+    }
+
+    public void setIncrementalTrain(boolean incrementalTrain) {
+        this.m_incrementalTrain = incrementalTrain;
     }
 
     public void addEventListener(final MLPLearningEventHandler handler) {
