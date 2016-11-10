@@ -1037,9 +1037,13 @@ public class MotMultilayerPerceptron extends AbstractClassifier
     private final List<MLPLearningEventHandler> handlers = new ArrayList<MLPLearningEventHandler>();
     private boolean m_eventListenerSet;
     private boolean m_maxErrorSet;
+    private boolean m_minAccuracySet;
     private boolean m_incrementalTrain;
     private int m_incrementalTrainCount;
     private double m_maxError;
+    private double m_minAccuracy;
+    private double m_accuracy;
+    private Instances m_testInstances;
 
     /**
      * The constructor.
@@ -1087,6 +1091,7 @@ public class MotMultilayerPerceptron extends AbstractClassifier
         m_decay = false;
         m_eventListenerSet = false;
         m_maxErrorSet = false;
+        m_minAccuracySet = false;
         m_incrementalTrain = true;
         m_incrementalTrainCount = 0;
     }
@@ -2070,10 +2075,23 @@ public class MotMultilayerPerceptron extends AbstractClassifier
                 }
             }
 
-            if (m_maxErrorSet) {
+            if (m_maxErrorSet && m_minAccuracySet) {
+                // current total network error is smaller than the defined error threshold and
+                // network accuracy is greater than defined min accuracy, set
+                // m_accepted to true - Zhuo Chen
+                if (m_error < m_maxError && m_accuracy > m_minAccuracy) {
+                    m_accepted = true;
+                }
+            } else if (m_maxErrorSet) {
                 // current total network error is smaller than the defined error threshold, set
                 // m_accepted to true - Zhuo Chen
                 if (m_error < m_maxError) {
+                    m_accepted = true;
+                }
+            } else if (m_minAccuracySet) {
+                // current network accuracy is greater than defined min accuracy, set m_accepted to
+                // true - Zhuo Chen
+                if (m_accuracy > m_minAccuracy) {
                     m_accepted = true;
                 }
             }
@@ -2711,12 +2729,42 @@ public class MotMultilayerPerceptron extends AbstractClassifier
         this.m_maxError = maxError;
     }
 
+    public double getMinAccuracy() {
+        return m_minAccuracy;
+    }
+
+    public void setMinAccuracy(double minAccuracy) {
+        this.m_minAccuracySet = true;
+        this.m_minAccuracy = minAccuracy;
+        this.m_accuracy = 0.0;
+    }
+
+    public double getAccuracy() {
+        return m_accuracy;
+    }
+
+    public void setAccuracy(double accuracy) {
+        this.m_accuracy = accuracy;
+    }
+
     public boolean getIncrementalTrain() {
         return m_incrementalTrain;
     }
 
     public void setIncrementalTrain(boolean incrementalTrain) {
         this.m_incrementalTrain = incrementalTrain;
+    }
+
+    public Instances getTestInstances() {
+        if (m_testInstances != null) {
+            return m_testInstances;
+        } else {
+            return m_instances;
+        }
+    }
+
+    public void setTestInstances(Instances testInstances) {
+        this.m_testInstances = testInstances;
     }
 
     public void addEventListener(final MLPLearningEventHandler handler) {
@@ -2735,6 +2783,10 @@ public class MotMultilayerPerceptron extends AbstractClassifier
         if (handlers.isEmpty()) {
             m_eventListenerSet = false;
         }
+    }
+
+    public void acceptNetworks() {
+        m_accepted = true;
     }
 
     private void fireMLPLearningEvents(final int epochNumber, final double totalNetworkError) {
