@@ -2789,6 +2789,10 @@ public class MotMultilayerPerceptron extends AbstractClassifier
         m_accepted = true;
     }
 
+    public int getCurrentIteration() {
+        return m_epoch;
+    }
+
     private void fireMLPLearningEvents(final int epochNumber, final double totalNetworkError) {
         final MLPLearningEvent event = new MLPLearningEvent(this, epochNumber, totalNetworkError);
         for (final MLPLearningEventHandler mlpLearningEventHandler : handlers) {
