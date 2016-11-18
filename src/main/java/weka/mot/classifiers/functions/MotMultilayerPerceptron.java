@@ -1034,7 +1034,7 @@ public class MotMultilayerPerceptron extends AbstractClassifier
     /**
      * mot specific instance variables
      */
-    private final List<MLPLearningEventHandler> handlers = new ArrayList<MLPLearningEventHandler>();
+    private transient final List<MLPLearningEventHandler> handlers = new ArrayList<MLPLearningEventHandler>();
     private boolean m_eventListenerSet;
     private boolean m_maxErrorSet;
     private boolean m_minAccuracySet;
